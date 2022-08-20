@@ -1,22 +1,23 @@
 #include "first_app.hpp"
 
 // std
-#include <stdexcept>
 #include <array>
 #include <cassert>
+#include <stdexcept>
 
 namespace lve
 {
+
 	FirstApp::FirstApp()
 	{
 		loadModels();
 		createPipelineLayout();
 		recreateSwapChain();
-		// createPipeline();
 		createCommandBuffers();
 	}
 
 	FirstApp::~FirstApp() { vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr); }
+
 	void FirstApp::run()
 	{
 		while (!lveWindow.shouldClose())
@@ -24,34 +25,8 @@ namespace lve
 			glfwPollEvents();
 			drawFrame();
 		}
-
-		// CPU阻塞直到GPU完成所有工作（防止验证层消息）
 		vkDeviceWaitIdle(lveDevice.device());
 	}
-	// void FirstApp::sierpinski(
-	// 	std::vector<LveModel::Vertex> &vertices,
-	// 	int depth,
-	// 	glm::vec2 left,
-	// 	glm::vec2 right,
-	// 	glm::vec2 top)
-	// {
-	// 	if (depth <= 0)
-	// 	{
-	// 		vertices.push_back({top});
-	// 		vertices.push_back({right});
-	// 		vertices.push_back({left});
-	// 	}
-	// 	else
-	// 	{
-	// 		auto leftTop = 0.5f * (left + top);
-	// 		auto rightTop = 0.5f * (right + top);
-	// 		auto leftRight = 0.5f * (left + right);
-	// 		sierpinski(vertices, depth - 1, left, leftRight, leftTop);
-	// 		sierpinski(vertices, depth - 1, leftRight, right, rightTop);
-	// 		sierpinski(vertices, depth - 1, leftTop, rightTop, top);
-	// 	}
-	// }
-
 	void FirstApp::loadModels()
 	{
 		std::vector<LveModel::Vertex> vertices{
@@ -59,10 +34,6 @@ namespace lve
 			{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 			{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 		lveModel = std::make_unique<LveModel>(lveDevice, vertices);
-		// other graphics
-		//  std::vector<LveModel::Vertex> vertices{};
-		//  sierpinski(vertices, 5, {-0.5f, 0.5f}, {0.5f, 0.5f}, {0.0f, -0.5f});
-		//  lveModel = std::make_unique<LveModel>(lveDevice, vertices);
 	}
 
 	void FirstApp::createPipelineLayout()
@@ -79,6 +50,7 @@ namespace lve
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 	}
+
 	void FirstApp::recreateSwapChain()
 	{
 		auto extent = lveWindow.getExtent();
@@ -105,31 +77,20 @@ namespace lve
 
 		createPipeline();
 	}
-
 	void FirstApp::createPipeline()
 	{
 		assert(lveSwapChain != nullptr && "Cannot create pipeline before swap chain");
 		assert(pipelineLayout != nullptr && "Cannot create pipeline before pipeline layout");
 
 		PipelineConfigInfo pipelineConfig{};
-		pipelineConfig.pipelineLayout = pipelineLayout;
 		LvePipeline::defaultPipelineConfigInfo(pipelineConfig);
 		pipelineConfig.renderPass = lveSwapChain->getRenderPass();
-
-		lve_pipeline = std::make_unique<LvePipeline>(
+		pipelineConfig.pipelineLayout = pipelineLayout;
+		lvePipeline = std::make_unique<LvePipeline>(
 			lveDevice,
 			"shaders/simple_shader.vert.spv",
 			"shaders/simple_shader.frag.spv",
 			pipelineConfig);
-	}
-	void FirstApp::freeCommandBuffers()
-	{
-		vkFreeCommandBuffers(
-			lveDevice.device(),
-			lveDevice.getCommandPool(),
-			static_cast<uint32_t>(commandBuffers.size()),
-			commandBuffers.data());
-		commandBuffers.clear();
 	}
 
 	void FirstApp::createCommandBuffers()
@@ -141,13 +102,21 @@ namespace lve
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandPool = lveDevice.getCommandPool();
 		allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
-
-		if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()) != VK_SUCCESS)
+		if (vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()) !=
+			VK_SUCCESS)
 		{
-			throw std::runtime_error("failed to allocate command buffers");
+			throw std::runtime_error("failed to allocate command buffers!");
 		}
 	}
-
+	void FirstApp::freeCommandBuffers()
+	{
+		vkFreeCommandBuffers(
+			lveDevice.device(),
+			lveDevice.getCommandPool(),
+			static_cast<uint32_t>(commandBuffers.size()),
+			commandBuffers.data());
+		commandBuffers.clear();
+	}
 	void FirstApp::recordCommandBuffer(int imageIndex)
 	{
 		VkCommandBufferBeginInfo beginInfo{};
@@ -185,7 +154,7 @@ namespace lve
 		vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
 		vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
 
-		lve_pipeline->bind(commandBuffers[imageIndex]);
+		lvePipeline->bind(commandBuffers[imageIndex]);
 		lveModel->bind(commandBuffers[imageIndex]);
 		lveModel->draw(commandBuffers[imageIndex]);
 
@@ -195,6 +164,7 @@ namespace lve
 			throw std::runtime_error("failed to record command buffer!");
 		}
 	}
+
 	void FirstApp::drawFrame()
 	{
 		uint32_t imageIndex;
@@ -205,11 +175,13 @@ namespace lve
 			recreateSwapChain();
 			return;
 		}
+
 		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
 		{
-			throw std::runtime_error("failed to acquire swap chain image");
+			throw std::runtime_error("failed to acquire swap chain image!");
 		}
-		//将提供的命令缓冲区提交到设备
+
+		recordCommandBuffer(imageIndex);
 		result = lveSwapChain->submitCommandBuffers(&commandBuffers[imageIndex], &imageIndex);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
 			lveWindow.wasWindowResized())
@@ -223,4 +195,5 @@ namespace lve
 			throw std::runtime_error("failed to present swap chain image!");
 		}
 	}
+
 }

@@ -1,29 +1,23 @@
 #pragma once
-
-#include "lve_window.hpp"
-#include "lve_pipleline.hpp"
-#include "lve_swap_chain.hpp"
 #include "lve_device.hpp"
 #include "lve_model.hpp"
-
+#include "lve_pipeline.hpp"
+#include "lve_swap_chain.hpp"
+#include "lve_window.hpp"
 // std
 #include <memory>
 #include <vector>
-
 namespace lve
 {
 	class FirstApp
 	{
 	public:
 		static constexpr int WIDTH = 800;
-		static constexpr int HEIGHT = 800;
-
+		static constexpr int HEIGHT = 600;
 		FirstApp();
 		~FirstApp();
-
 		FirstApp(const FirstApp &) = delete;
 		FirstApp &operator=(const FirstApp &) = delete;
-
 		void run();
 
 	private:
@@ -36,20 +30,12 @@ namespace lve
 		void recreateSwapChain();
 		void recordCommandBuffer(int imageIndex);
 
-		//.OTHER
-		void sierpinski(
-			std::vector<LveModel::Vertex> &vertices,
-			int depth,
-			glm::vec2 left,
-			glm::vec2 right,
-			glm::vec2 top);
-
-		LveWindow lveWindow{WIDTH, HEIGHT, "hello vulkan"};
+		LveWindow lveWindow{WIDTH, HEIGHT, "Vulkan Tutorial"};
 		LveDevice lveDevice{lveWindow};
 		std::unique_ptr<LveSwapChain> lveSwapChain;
-		std::unique_ptr<LvePipeline> lve_pipeline;
+		std::unique_ptr<LvePipeline> lvePipeline;
 		VkPipelineLayout pipelineLayout;
 		std::vector<VkCommandBuffer> commandBuffers;
 		std::unique_ptr<LveModel> lveModel;
 	};
-}
+} // namespace lve
